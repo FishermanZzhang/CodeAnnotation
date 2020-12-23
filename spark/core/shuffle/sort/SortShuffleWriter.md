@@ -2,8 +2,8 @@
 spark2.x 中存在三种shuffle write 方式 1. BypassMergeSortShuffleWriter 2. SortShuffleWriter 3. UnsafeShuffleWriter 
 spark3.x 中只有了SortShuffleWriter。
 
-[源码](https://github.com/apache/spark/blob/v3.0.1/core/src/main/scala/org/apache/spark/shuffle/sort/SortShuffleWriter.scala)
-
+[SortShuffleWriter](https://github.com/apache/spark/blob/v3.0.1/core/src/main/scala/org/apache/spark/shuffle/sort/SortShuffleWriter.scala#L51)
+[ExternalSorter](https://github.com/apache/spark/blob/v3.0.1/core/src/main/scala/org/apache/spark/util/collection/ExternalSorter.scala)
 整体思路
 * 根据是否map端做聚合, 初始化ExternalSorter。
    ```
@@ -100,7 +100,7 @@ spark3.x 中只有了SortShuffleWriter。
 // partitionedIterator (这里是按partitionId 进行merge `for ((id, elements) <- this.partitionedIterator)`)  -->
 // merge 在这个可以看到spills 和 内存数据 merge -->
 // mergeWithAggregation -->
-// mergeSort
+// mergeSort 通过迭代器完成算法部分. 
   /**
    * Merge-sort a sequence of (K, C) iterators using a given a comparator for the keys.
    */
