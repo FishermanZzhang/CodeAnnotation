@@ -110,6 +110,15 @@ spark3.x 中只有了SortShuffleWriter。
     type Iter = BufferedIterator[Product2[K, C]]
     // Use the reverse order (compare(y,x)) because PriorityQueue dequeues the max
     // 使用优先队列进行排序
+    // 这里K为key, 不再是(partitionId, key)
+    // 原因是通过迭代器读取时, 只保留了key, 代码如下
+    // override def next(): Product2[K, C] = {
+    //   if (!hasNext) {
+    //     throw new NoSuchElementException
+    //   }
+    //   val elem = data.next()
+    //   (elem._1._2, elem._2)
+    // }
     val heap = new mutable.PriorityQueue[Iter]()(
       (x: Iter, y: Iter) => comparator.compare(y.head._1, x.head._1))
     heap.enqueue(bufferedIters: _*)  // Will contain only the iterators with hasNext = true
