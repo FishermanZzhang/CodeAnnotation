@@ -1,4 +1,9 @@
-### Dynamically coalescing shuffle partitions
+## Dynamically coalescing shuffle partitions
+### no aqe vs aqe
+假设 原始的数据很小 & shuffle 时设定partition的数量为5. 那么不开启aqe 则会产生6个partition. 如果开启aqe,则会合并小文件,产生3个partition. 
+![no aqe](https://databricks.com/wp-content/uploads/2020/05/blog-adaptive-query-execution-2.png)
+![aqe](https://databricks.com/wp-content/uploads/2020/05/blog-adaptive-query-execution-3.png)
+### 注解
 [原始代码](https://github.com/apache/spark/blob/v3.0.1/sql/core/src/main/scala/org/apache/spark/sql/execution/adaptive/CoalesceShufflePartitions.scala#L33)
 ```
   override def apply(plan: SparkPlan): SparkPlan = {
