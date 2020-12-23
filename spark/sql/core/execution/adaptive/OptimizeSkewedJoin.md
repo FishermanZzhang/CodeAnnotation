@@ -1,6 +1,6 @@
 ## Dynamically optimizing skew joins
 ### no aqe vs aqe
-假设 partition0的数据远远多余其他分区. 开启aqe 后,则会对skew 的partition 重新划分 
+假设 partition0的数据远远多余其他分区. 开启aqe 后,则会对skewed partition 重新划分. 例如partition0 就会划分成2块.
 ![no aqe](https://databricks.com/wp-content/uploads/2020/05/blog-adaptive-query-execution-5.png)
 ![aqe](https://databricks.com/wp-content/uploads/2020/05/blog-adaptive-query-execution-6.png)
 
