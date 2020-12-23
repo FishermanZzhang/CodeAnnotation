@@ -400,6 +400,9 @@
       // 有效的partition 个数
       val nonZeroCnt = mapStats.bytesByPartitionId.count(_ > 0)
       // spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin 默认0.2
+      // TODO：这里存在一个疑问
+      // 如果partition 分布为[0, 0, 0, ..., 特别大的数值]
+      // 此时满足条件，怎么处理？
       partitionCnt > 0 && nonZeroCnt > 0 &&
         (nonZeroCnt * 1.0 / partitionCnt) < conf.nonEmptyPartitionRatioForBroadcastJoin
     case _ => false
