@@ -3,7 +3,8 @@
 假设 partition0的数据远远多余其他分区. 开启aqe 后,则会对skew 的partition 重新划分 
 ![no aqe](https://databricks.com/wp-content/uploads/2020/05/blog-adaptive-query-execution-5.png)
 ![aqe](https://databricks.com/wp-content/uploads/2020/05/blog-adaptive-query-execution-6.png)
-### 注
+
+### 注解
 
 只有在`join`是才做此优化，
 在没有`join`的时候也会出现和`动态合并分区`相反的情况，即某个分区的部分shuffle write特别大，为什么没有做这种优化呢？
