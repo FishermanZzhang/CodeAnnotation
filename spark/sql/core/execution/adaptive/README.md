@@ -15,10 +15,10 @@ adaptive-query-execution
 |spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes|256MB|数据倾斜判断阈值,必须同时满足skewedPartitionFactor和skewedPartitionThresholdInBytes|
 |spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin|0.2|转为broadcastJoin的非空分区比例阈值|
 
-### Dynamically coalescing shuffle partitions
+### [Dynamically coalescing shuffle partitions](./CoalesceShufflePartitions.md)
 ### Dynamically switching join strategies
-### Dynamically optimizing skew joins
-### Demote Broadcast Hash Join
+### [Dynamically optimizing skew joins](./OptimizeSkewedJoin.md)
+### [Demote Broadcast Hash Join](./DemoteBroadcastHashJoin.md)
 
 ### 参考文献
 1. https://blog.csdn.net/zyzzxycj/article/details/106469572
