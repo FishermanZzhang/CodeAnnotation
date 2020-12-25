@@ -37,6 +37,7 @@ spark3.x 中只有了SortShuffleWriter。
     val mergeValue = aggregator.get.mergeValue
     val createCombiner = aggregator.get.createCombiner
     var kv: Product2[K, V] = null
+    // 使用update方法做map端聚合
     val update = (hadValue: Boolean, oldValue: C) => {
       if (hadValue) mergeValue(oldValue, kv._2) else createCombiner(kv._2)
     }
@@ -44,7 +45,8 @@ spark3.x 中只有了SortShuffleWriter。
       addElementsRead()
       // 获取元素的kv
       kv = records.next()
-      // key = (getPartition(kv._1), kv._1) 即(分区id， key的hash值) 
+      // K = (getPartition(kv._1), kv._1) 
+      // 即  (分区id， key的hash值), 后续也会写成(p.artitionId, key) 的形式
       map.changeValue((getPartition(kv._1), kv._1), update)
       // 调用栈
       maybeSpillCollection(usingMap = true)
@@ -84,8 +86,17 @@ spark3.x 中只有了SortShuffleWriter。
 
   // 开始溢写
   override protected[this] def spill(collection: WritablePartitionedPairCollection[K, C]): Unit = {
-    // 这里comparator 
-    // 会按照 key = (getPartition(kv._1), kv._1) 即(分区id， key的hash值) 进行排序
+    // 这里comparator 会按照 key = (getPartition(kv._1), kv._1) 即(分区id， key的hash值) 进行排序
+    // comparator 会经过转换为 partitionKeyComparator.
+    // def partitionKeyComparator[K](keyComparator: Comparator[K]): Comparator[(Int, K)] =
+    //   (a: (Int, K), b: (Int, K)) => {
+    //     val partitionDiff = a._1 - b._1
+    //     if (partitionDiff != 0) {
+    //       partitionDiff
+    //     } else {
+    //       keyComparator.compare(a._2, b._2)
+    //     }
+    //   }
     val inMemoryIterator = collection.destructiveSortedWritablePartitionedIterator(comparator)
     val spillFile = spillMemoryIteratorToDisk(inMemoryIterator)
     // 把溢写的文件加入列表中spills,后续进行merge sort
