@@ -49,10 +49,10 @@ AQE 中RBO `CoalesceShufflePartitions`, `OptimizeSkewedJoin`, `OptimizeLocalShuf
     // analyzed --> optimized
     val optimized = optimizer.execute(logicalPlan)
     // 物理执行计划(和可执行物理计划的区别)
-    // 物理执行计划: spark plan: SparkPlan
-    // 可物理执行计划: executed plan: SparkPlan
+    // 物理执行计划: spark plan
     val sparkPlan = context.session.sessionState.planner.plan(ReturnAnswer(optimized)).next()
     // RBO, CBO 优化(不包含 AQE 三个规则)
+    // 可物理执行计划: newPlan 是executed plan
     val newPlan = applyPhysicalRules(sparkPlan, preprocessingRules ++ queryStagePreparationRules)
     (newPlan, optimized)
   }
