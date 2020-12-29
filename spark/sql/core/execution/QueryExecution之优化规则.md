@@ -17,6 +17,6 @@
 
 ### 6. CollapseCodegenStages
 
-### ReuseExchange
+### 7. ReuseExchange
 
-### ReuseSubquery
+### 8. 7. ReuseSubquery
