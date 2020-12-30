@@ -125,7 +125,7 @@ spark.memory.fraction=0.6
 systemMemory=4.44482421875g 
 reservedMemory=300M
 maxMemory=(systemMemory - 300/1024)*0.6 = 2.49111328125
-在heap 上为非存储，非执行目的预留一定数量的内存=(systemMemory - 300M )*0.4
+UserMemory=(systemMemory - 300M )*0.4
 onHeapStorageMemory=maxMemory * 0.5
 onHeapExecution=maxMemory * (1 - 0.5)
 maxOffHeapMemory=4g // spark.memory.offHeap.size
@@ -135,8 +135,14 @@ offHeapExecutionMemory=maxOffHeapMemory * (1 - 0.5)
 
 `spark-ui` 上显示的`Storage Memory` 为 `执行内存` + `存贮内存`. 本实验中为通过计算为 `6.49111328125`, `spark-ui` 显示 `6.5g`. 
 
+### memory 功能
+* Executor Memory: It is mainly used to store temporary data in Shuffle, Join, Sort, Aggregation and other computing processes.
+* Storage memory: mainly used to store the cache data of spark, such as RDD cache and unroll data
+* User Memory: Mainly used to store data needed for RDD conversion operations, such as RDD dependencies, etc.
+* Reserved Memory: The system reserves memory for storing Spark internal objects
+
 ### 疑问
-* spark.executor.memoryOverhead  这个参数有什么用?
+* spark.executor.memoryOverhead 这部分内存作用在哪? (怀疑作用在User Memory) 
 * spark.testing.memory 与 spark.memory.offHeap.size 的关系?
 
 ### 参考
