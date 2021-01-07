@@ -5,9 +5,9 @@
 * leveldb的读写方式（high level）
 
 ## SSTable
-* [SSTable 逻辑结构](./table/sstable.md)
-* [data block 的读写过程](./table/data_block.md)
-* SSTable 的读写过程
+1 [SSTable 逻辑结构](./table/sstable.md)
+2 [data block 的读写过程](./table/data_block.md)
+3 SSTable 的读写过程
 
 ## Version
 
