@@ -24,7 +24,7 @@ TODO: 根据index的max_key 定位时，还是顺序遍历。搞成二分查找�
 record0 = (abc, value0)
 record1 = (abd, value1)
 存贮：
-record0= 3+0+5+abc+value0
+record0= 3+0+5+abc+value0 
 record1= 2+1+5+d+value1
 ```
 其中shared_bytes、unshared_bytes、 value_length 都是varint.
