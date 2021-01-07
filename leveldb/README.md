@@ -6,8 +6,7 @@
 
 ## SSTable
 * SSTable 逻辑结构
-* data block 的写过程
-* data block 的读过程
+* data block 的读写过程
 * SSTable 的读写过程
 
 ## Version
