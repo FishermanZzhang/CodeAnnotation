@@ -57,6 +57,7 @@ spark3.x 中只有了SortShuffleWriter。
   protected def maybeSpill(collection: C, currentMemory: Long): Boolean = {
     var shouldSpill = false
     // 初始myMemoryThreshold=5m, 根据资源配置动态获取资源
+    // elementsRead % `32` 这里为什么使用 `32` ？
     if (elementsRead % 32 == 0 && currentMemory >= myMemoryThreshold) {
       // Claim up to double our current memory from the shuffle memory pool
       val amountToRequest = 2 * currentMemory - myMemoryThreshold
