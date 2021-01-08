@@ -1,6 +1,8 @@
 ## SSTable 读写
 
 ### SSTable 写
+这里介绍的 sstable写为itable 中的数据写入磁盘过程。即minor compaction 过程。 major commpaction 会在后边介绍
+
 [这里](https://github.com/FishermanZzhang/CodeAnnotation/blob/main/leveldb/leveldb_high_level_%E4%BB%8B%E7%BB%8D.md#write-%E8%BF%87%E7%A8%8B)介绍了KV 写入`wtable`, `rtable`, `SSTable`的过程. 对SSTable 写过程进行展开
 
 ```
