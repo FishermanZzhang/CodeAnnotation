@@ -1,7 +1,7 @@
 ## SSTable 读写
 
 ### SSTable 写
-[这里](https://github.com/FishermanZzhang/CodeAnnotation/blob/main/leveldb/leveldb_high_level_%E4%BB%8B%E7%BB%8D.md#write-%E8%BF%87%E7%A8%8B)介绍了KV 写入`wtable`, `rtable`, `SSTable`的过程
+[这里](https://github.com/FishermanZzhang/CodeAnnotation/blob/main/leveldb/leveldb_high_level_%E4%BB%8B%E7%BB%8D.md#write-%E8%BF%87%E7%A8%8B)介绍了KV 写入`wtable`, `rtable`, `SSTable`的过程. 对SSTable 写过程进行展开
 
 ```
 // 添加KV
@@ -20,6 +20,7 @@ void TableBuilder::Add(const Slice& key, const Slice& value) {
     r->options.comparator->FindShortestSeparator(&r->last_key, key);
     std::string handle_encoding;
     r->pending_handle.EncodeTo(&handle_encoding);
+    // value 为block的offset 和 size
     r->index_block.Add(r->last_key, Slice(handle_encoding));
     r->pending_index_entry = false;
   }
@@ -149,3 +150,81 @@ Status TableBuilder::Finish() {
 
 
 ### SSTable 读
+简单回顾一下 客户端查找的过程：
+1. 在wtable 中查找，如果没找到进入下一步
+2. 在itable 中查找， 如果没有找到进入一下步
+3. 在level0 上的sstable(磁盘--> 内存)， 如果没有找到进入下一步
+4. 依次在level1 到 6 中查找。
+
+步骤3 和 步骤4 的区别是， level0 中的sstable（一般是4个）是局部有序的。所以需要按照时间倒序查找即可。
+
+步骤4：
+1. 每个level 中的数据都是全局有序的， 所以可以基于meta信息二分查找定位具体的sstable. 
+2. sstable 中可以使用 index 进行二分查找，定位重启点，再顺序遍历，定位data block。
+3. [data block 读过程](./sstable_write_read.md) 进行二分查找，定位找到重启点，再顺序遍历定位KEY。
+
+// 调用过程为`DBImpl::Get --> Version::Get --> FindFile if level> 0 else sstable sort --> TableCache::Get`
+
+// 如果sstable 在磁盘中，则需要把数据读入内存，并加入cache（LRU）
+// 在sstable 中进行查找
+```
+Status TableCache::Get(const ReadOptions& options, uint64_t file_number,
+                       uint64_t file_size, const Slice& k, void* arg,
+                       void (*handle_result)(void*, const Slice&,
+                                             const Slice&)) {
+  Cache::Handle* handle = nullptr;
+  // file_number是sstable 的文件号
+  // 首先 cache 中查找 sstable，如果没有则读取磁盘，并加入到cache中
+  Status s = FindTable(file_number, file_size, &handle);
+  if (s.ok()) {
+    Table* t = reinterpret_cast<TableAndFile*>(cache_->Value(handle))->table;
+    // sstable 中进行查找，对这个函数进行展开如下
+    s = t->InternalGet(options, k, arg, handle_result);
+    cache_->Release(handle);
+  }
+  return s;
+}
+```
+读取sstable 的过程为读取 index block 再读取data block
+
+index 和 data block 的存贮形式一致。参考[datablock读](./data_block.md#读过程)
+
+```
+// handle_result 功能：比较当前找到的KEY(internel_key) 的type类型以及是否和user_key 相等。
+// 实现位于version_set.cc 中的SaveValue(void* arg, const Slice& ikey, const Slice& v)
+Status Table::InternalGet(const ReadOptions& options, const Slice& k, void* arg,
+                          void (*handle_result)(void*, const Slice&,
+                                                const Slice&)) {
+  Status s;
+  // 获取index，从而定位data block
+  Iterator* iiter = rep_->index_block->NewIterator(rep_->options.comparator);
+  // 根据重启点进行二分查找，再进行顺序遍历
+  iiter->Seek(k);
+  if (iiter->Valid()) {
+    Slice handle_value = iiter->value();
+    FilterBlockReader* filter = rep_->filter;
+    BlockHandle handle;
+    if (filter != nullptr && handle.DecodeFrom(&handle_value).ok() &&
+        !filter->KeyMayMatch(handle.offset(), k)) {
+      // Not found
+    } else {
+      // 根据index的value，即offset|size, 获取data block
+      Iterator* block_iter = BlockReader(this, options, iiter->value());
+      // 根据重启点进行二分查找，再进行顺序遍历
+      block_iter->Seek(k);
+      if (block_iter->Valid()) {
+        (*handle_result)(arg, block_iter->key(), block_iter->value());
+      }
+      s = block_iter->status();
+      delete block_iter;
+    }
+  }
+  if (s.ok()) {
+    s = iiter->status();
+  }
+  delete iiter;
+  return s;
+}
+```
+
+

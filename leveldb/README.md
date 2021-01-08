@@ -7,7 +7,9 @@
 ## SSTable
 1 [SSTable 逻辑结构](./table/sstable.md)
 2 [data block 的读写过程](./table/data_block.md)
-3 SSTable 的读写过程
+3 [SSTable 的读写过程](./table/sstable_write_read.md)
+
+## Compaction 过程
 
 ## Version
 

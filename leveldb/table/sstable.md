@@ -13,7 +13,8 @@
 #### 通过index 可以定位 data block
 ![](https://leveldb-handbook.readthedocs.io/zh/latest/_images/indexblock_format.jpeg)
 
-TODO: 根据index的max_key 定位时，还是顺序遍历。搞成二分查找？ 
+~~TODO: 根据index的max_key 定位时，还是顺序遍历。搞成二分查找？~~
+>根据index的max_key 定位时，也是二分查找. index 格式为|key|offset|size|, 则把offset+size 作为value。data_block 和 index_block 的数据结构一直的。 
 
 #### data block 的逻辑结构
 ![](https://github.com/balloonwj/CppGuide/raw/master/articles/imgs/leveldb11.webp)
