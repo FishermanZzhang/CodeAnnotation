@@ -260,7 +260,7 @@ Iterator* DBImpl::NewInternalIterator(const ReadOptions& options,
   }
   // sstable的迭代器，后续代码会展
   versions_->current()->AddIterators(options, &list);
-  // 由于wtable，rtable level0的sstable 不是全局有序的，所以要排序。不做展开
+  // 由于compaction 过程，wtable，rtable level0的sstable, level1-6 并不是全局有序的 ，所以要排序。不做展开
   Iterator* internal_iter =
       NewMergingIterator(&internal_comparator_, &list[0], list.size());
   versions_->current()->Ref();
