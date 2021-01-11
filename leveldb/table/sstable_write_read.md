@@ -276,8 +276,7 @@ NewConcatenatingIterator(options, level)
 NewTwoLevelIterator(new LevelFileNumIterator(vset_->icmp_, &files_[level]), &GetFileIterator,vset_->table_cache_, options)
 // 为什么叫Two Level 呢？
 // 这是由于sstable 是两层的结构，有index block，通过index block 可以定位data block
-// 同时用于index iter 和 data iter 就叫做Two Level iter了。
-
-
+// 同时拥有index iter 和 data iter， 并且它们是层级关系就叫做Two Level iter了。
+关于 index/data iter 的具体原理，在data block 的读取已经讲过了.
 ```
 
