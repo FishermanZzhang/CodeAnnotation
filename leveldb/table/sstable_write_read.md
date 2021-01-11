@@ -151,7 +151,7 @@ Status TableBuilder::Finish() {
 ```
 
 
-### SSTable 读
+### SSTable 读之随机读
 简单回顾一下 客户端查找的过程：
 1. 在wtable 中查找，如果没找到进入下一步
 2. 在itable 中查找， 如果没有找到进入一下步
@@ -229,4 +229,55 @@ Status Table::InternalGet(const ReadOptions& options, const Slice& k, void* arg,
 }
 ```
 
+### SSTable 读之顺序读
+```
+leveldb::DB* db;
+// db 经过初始化后
+auto it = db->NewIterator(leveldb::ReadOptions());
+for (it->SeekToFirst(); it->Valid(); it->Next()) {
+  auto key = it->key();
+  auto value = it->value();
+}
+```
+
+简单看一下迭代器的构造过程
+```
+db->NewIterator(leveldb::ReadOptions()); -->
+Iterator* iter = NewInternalIterator(options, &latest_snapshot, &seed);
+
+Iterator* DBImpl::NewInternalIterator(const ReadOptions& options,
+                                      SequenceNumber* latest_snapshot,
+                                      uint32_t* seed) {
+  // ...
+  std::vector<Iterator*> list;
+  // wtable 的迭代器
+  list.push_back(mem_->NewIterator());
+  mem_->Ref();
+  if (imm_ != nullptr) {
+    // rtable 的迭代器
+    list.push_back(imm_->NewIterator());
+    imm_->Ref();
+  }
+  // sstable的迭代器，后续代码会展
+  versions_->current()->AddIterators(options, &list);
+  // 由于wtable，rtable level0的sstable 不是全局有序的，所以要排序。不做展开
+  Iterator* internal_iter =
+      NewMergingIterator(&internal_comparator_, &list[0], list.size());
+  versions_->current()->Ref();
+}
+
+// AddIterators 里边有两个迭代器，对于level0，和level1-6
+// level0
+vset_->table_cache_->NewIterator(options, files_[0][i]->number, files_[0][i]->file_size)
+// level>0
+NewConcatenatingIterator(options, level)
+
+// 这两个迭代器， 都会构造成
+NewTwoLevelIterator(new LevelFileNumIterator(vset_->icmp_, &files_[level]), &GetFileIterator,vset_->table_cache_, options)
+// 为什么叫Two Level 呢？
+// 这是由于sstable 是两层的结构，有index block，通过index block 可以定位data block
+// 同时用于index iter 和 data iter 就叫做Two Level iter了。
+
+
+```
 
