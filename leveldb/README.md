@@ -10,6 +10,8 @@
 3 [SSTable 的读写过程](./table/sstable_write_read.md)
 
 ## Compaction 过程
+* [minor compaction](./table/sstable_write_read.md#SSTable-写)
+* [major commpaction](./major_commpaction.md)
 
 ## Version
 
