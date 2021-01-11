@@ -17,7 +17,7 @@
 >根据index的max_key 定位时，也是二分查找. index 格式为|key|offset|size|, 则把offset+size 作为value。data_block 和 index_block 的数据结构一直的。 
 
 #### data block 的逻辑结构
-![](https://github.com/balloonwj/CppGuide/raw/master/articles/imgs/leveldb11.webp)
+![](../imgs/leveldb_logistical_data_block_detail.jpg)
 
 ```
 举个例子
