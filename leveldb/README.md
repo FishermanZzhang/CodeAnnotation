@@ -4,6 +4,9 @@
 * leveldb 架构
 * leveldb的读写方式（high level）
 
+## [MemTable](./Memtable.md)
+* SkipList
+
 ## SSTable
 1 [SSTable 逻辑结构](./table/sstable.md)
 2 [data block 的读写过程](./table/data_block.md)
