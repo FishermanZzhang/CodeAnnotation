@@ -2,7 +2,7 @@
 leveldb 包含wtable, rtable。memtable 的数据结构本质上是SlipList
 `typedef SkipList<const char*, KeyComparator> Table`
 
-一般memtable的大小为4*1024*1024, data_block 的大小为4*1024
+一般memtable的大小为4\*1024\*1024, data_block 的大小为4*1024
 
 这里对节点插入进行展开.
 先看一下比较器, InternalKeyComparator排序规则为：
