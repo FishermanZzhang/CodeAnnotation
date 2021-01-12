@@ -1,5 +1,7 @@
 ## MemTable
 leveldb 包含wtable, rtable。memtable 的数据结构本质上是SlipList
+`typedef SkipList<const char*, KeyComparator> Table`
+
 一般memtable的大小为4*1024*1024, data_block 的大小为4*1024
 
 这里对节点插入进行展开.
@@ -8,6 +10,7 @@ leveldb 包含wtable, rtable。memtable 的数据结构本质上是SlipList
 2. 按照sequence num 降序。
 ```
 // format.h .cc
+// 这里的key 为internal_key
 int InternalKeyComparator::Compare(const Slice& akey, const Slice& bkey) const {
   // Order by:
   //    increasing user key (according to user-supplied comparator)
@@ -28,10 +31,14 @@ int InternalKeyComparator::Compare(const Slice& akey, const Slice& bkey) const {
 ```
 SlipList insert 操作。(给一个有序单链表，插入KEY,插入后仍然有序)
 ```
+// 这里的Key的形式为：user_size+user_key+(SN|Type)+value_size+value
+// 通过memtable.cc 中的KeyComparator，会把Key解析成internal_key=user_key+(SN|Type)
+// KeyComparator重载了()
 template <typename Key, class Comparator>
 void SkipList<Key, Comparator>::Insert(const Key& key) {
   Node* prev[kMaxHeight];
   // 找到前驱们，和当前要插入的位置。这个位置就是x所在的位置。
+  // FindGreaterOrEqual --> KeyIsAfterNode --> 调用重载的()
   Node* x = FindGreaterOrEqual(key, prev);
   // 随机生成高度，即当前key后继指针的个数
   int height = RandomHeight();
@@ -40,6 +47,7 @@ void SkipList<Key, Comparator>::Insert(const Key& key) {
     for (int i = GetMaxHeight(); i < height; i++) {
       prev[i] = head_;
     }
+    // 多线程
     max_height_.store(height, std::memory_order_relaxed);
   }
   // 构造当前节点
