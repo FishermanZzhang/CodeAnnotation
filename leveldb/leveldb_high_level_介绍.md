@@ -58,7 +58,7 @@ write数据时会先写入log，再写入wtable.
 * Minor Compaction 表示从rtable 中dump 数据
 * Major Compaction 表示从 n 层 sst 文件下沉到 n+1 层 sst 文件.
 * L0 之间的文件中的key 不是全局排序，即整体无序， 当个文件中有序
-* L1-L7 每层的SSTable(多个) 是整体有序的。不同层间是无序的。
+* L1-L6 每层的SSTable(多个) 是整体有序的。不同层间是无序的。
 * Major Compaction 采用多路归并。
 
 ### Write/Get 流程
@@ -68,7 +68,7 @@ write数据时会先写入log，再写入wtable.
 3. 调度器负责异步compaction(以下三个步骤没有顺序依赖关系)
    1. 把rtable 刷到磁盘, 然后释放相应的Log文件的空间。即 Minor Compaction 
    2. L0 SST文件个数超过阈值，进行Major Compaction。（归并排序）
-   3. L1-L7 同理。
+   3. L1-L6 同理。
 ```
 // 步骤1
 Status status = MakeRoomForWrite(updates == nullptr);
