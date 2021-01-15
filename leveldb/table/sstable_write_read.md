@@ -280,3 +280,7 @@ NewTwoLevelIterator(new LevelFileNumIterator(vset_->icmp_, &files_[level]), &Get
 关于 index/data iter 的具体原理，在data block 的读取已经讲过了.
 ```
 
+### 补充
+1. 当某个文件无效读取的次数过多， 则也会可能触发compaction。
+
+
