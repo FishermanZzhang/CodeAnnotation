@@ -52,7 +52,7 @@ internal_key = user_key + sequence + type
 write数据时会先写入log，再写入wtable.
 简单来说LevelDB 遇到突发停机事故，没有持久化的 wtable 和 rtable 数据就会丢失。可以通过LOG 进行数据库恢复.
 还有一个不懂的数据结构：`Log Structured Merge Trees
-### DISK
+### DISK(LSM-Tree)
 ![disk](https://pic1.zhimg.com/v2-d64879b4d2f2e00dc9faf08f5bb9b2b8_r.jpg)
 * SSTable 表示 Sorted String Table，文件里所有的 Key(internel_key) 都会有序的. 
 * Minor Compaction 表示从rtable 中dump 数据
