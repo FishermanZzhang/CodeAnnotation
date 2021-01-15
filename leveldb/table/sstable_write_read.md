@@ -280,7 +280,37 @@ NewTwoLevelIterator(new LevelFileNumIterator(vset_->icmp_, &files_[level]), &Get
 关于 index/data iter 的具体原理，在data block 的读取已经讲过了.
 ```
 
-### 补充
-1. 当某个文件无效读取的次数过多， 则也会可能触发compaction。
+### LSM Tree 读过程思考
+* 当某个文件无效读取的次数过多， 则也会可能触发compaction。
+```
+  // DBImpl::Get 中， 代码如下
+  if (have_stat_update && current->UpdateStats(stats)) {
+    MaybeScheduleCompaction();
+  }
+  
+bool Version::UpdateStats(const GetStats& stats) {
+  FileMetaData* f = stats.seek_file;
+  if (f != nullptr) {
+    f->allowed_seeks--;
+    if (f->allowed_seeks <= 0 && file_to_compact_ == nullptr) {
+      file_to_compact_ = f;
+      file_to_compact_level_ = stats.seek_file_level;
+      return true;
+    }
+  }
+  return false;
+}
+```
+#### 思考1
+LSM Tree 读过程为层次遍历。 如果一个要读取的key在最高层，则必须经过依次遍历底层的数据。
+那么，是否可以把一些高层比较热的table（block）， 重新提交到底层？
+#### 思考2
+是否能够出现读写分离的场景（在大数据场景下）, 写操作完成后，统一排序，写成B+Tree。
+#### 思考3
+LSM Tree 的本质是为了加速写， 并没有加速读或者说是以降低读，来换取的写。
+那么，是否可以把`Tree`变成`Forest`
+
+
+
 
 
