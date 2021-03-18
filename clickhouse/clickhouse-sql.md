@@ -4,6 +4,8 @@
 * optimize
 
 ## select
+`select * from $table_name`
+
 src/Server/TCPHandler.cpp
 ```
 void TCPHandler::runImpl(){
@@ -164,6 +166,140 @@ return Chunk(std::move(ordered_columns), read_result.num_rows)
 ```
 
 ## insert
+`insert into $table_name values (...),(...)`
+
+src/Server/TCPHandler.cpp
+```
+void TCPHandler::runImpl(){
+while(true){
+// executeQuery负责从sql构建pipline
+state.io = executeQuery(state.query, *query_context, false, state.stage, may_have_embedded_data)
+// 执行pipeline, 把执行结果发动到client
+state.need_receive_data_for_insert = true;
+processInsertQuery(connection_settings);
+}
+}
+```
+src/Interpreters/executeQuery.cpp
+```
+// 这部分和select过程类似
+// interpreter的类型为InterpreterInsertQuery
+```
+这里对interpreter->execute() 展开
+src/Interpreters/InterpreterInsertQuery.cpp
+```
+BlockIO InterpreterInsertQuery::execute(){
+  // ...
+  out = std::make_shared<PushingToViewsBlockOutputStream>(table, metadata_snapshot, context, query_ptr, no_destination);
+}
+```
+src/DataStreams/PushingToViewsBlockOutputStream.cpp
+```
+// PushingToViewsBlockOutputStream的构造函数
+PushingToViewsBlockOutputStream::PushingToViewsBlockOutputStream(...){
+  // output 类型为 BlockOutputStreamPtr
+  // storage 类型为 StorageMergeTree
+  output = storage->write(query_ptr, storage->getInMemoryMetadataPtr(), context);
+}
+```
+src/Storages/StorageMergeTree.cpp
+```
+BlockOutputStreamPtr StorageMergeTree::write(const ASTPtr & /*query*/, const StorageMetadataPtr & metadata_snapshot, const Context & context){
+    const auto & settings = context.getSettingsRef();
+    return std::make_shared<MergeTreeBlockOutputStream>(
+        *this, metadata_snapshot, settings.max_partitions_per_insert_block, context.getSettingsRef().optimize_on_insert);
+
+}
+```
+至此，关联上了OutputStream。
+
+经过一系列的调用，进行write操作
+栈信息为：
+```
+DB::MergeTreeBlockOutputStream::write(DB::MergeTreeBlockOutputStream * const this, const DB::Block & block) (src\Storages\MergeTree\MergeTreeBlockOutputStream.cpp:26)
+DB::PushingToViewsBlockOutputStream::write(DB::PushingToViewsBlockOutputStream * const this, const DB::Block & block) (src\DataStreams\PushingToViewsBlockOutputStream.cpp:167)
+DB::AddingDefaultBlockOutputStream::write(DB::AddingDefaultBlockOutputStream * const this, const DB::Block & block) (src\DataStreams\AddingDefaultBlockOutputStream.cpp:10)
+DB::SquashingBlockOutputStream::finalize(DB::SquashingBlockOutputStream * const this) (src\DataStreams\SquashingBlockOutputStream.cpp:30)
+DB::SquashingBlockOutputStream::writeSuffix(DB::SquashingBlockOutputStream * const this) (src\DataStreams\SquashingBlockOutputStream.cpp:50)
+DB::CountingBlockOutputStream::writeSuffix(DB::CountingBlockOutputStream * const this) (src\DataStreams\CountingBlockOutputStream.h:37)
+DB::TCPHandler::processInsertQuery(DB::TCPHandler * const this, const DB::Settings & connection_settings) (src\Server\TCPHandler.cpp:520)
+DB::TCPHandler::runImpl(DB::TCPHandler * const this) (src\Server\TCPHandler.cpp:268)
+DB::TCPHandler::run(DB::TCPHandler * const this) (src\Server\TCPHandler.cpp:1417)
+```
+写操作
+src/Storages/MergeTree/MergeTreeBlockOutputStream.cpp
+```
+void MergeTreeBlockOutputStream::write(const Block & block){
+  // 把block 分成多个 partition
+  auto part_blocks = storage.writer.splitBlockIntoParts(block, max_parts_per_block, metadata_snapshot);
+  for (auto & current_block : part_blocks){
+    // storage.writer 类型为MergeTreeDataWriter (src/Storages/MergeTree/MergeTreeDataWriter.cpp)
+    MergeTreeData::MutableDataPartPtr part = storage.writer.writeTempPart(current_block, metadata_snapshot, optimize_on_insert);
+    // 把临时文件rename成正式文件
+    storage.renameTempPartAndAdd(part, &storage.increment);
+    PartLog::addNewPart(storage.global_context, part, watch.elapsed());
+    storage.background_executor.triggerTask();
+  }
+```
+src/Storages/MergeTree/MergeTreeDataWriter.cpp
+```
+MergeTreeData::MutableDataPartPtr MergeTreeDataWriter::writeTempPart(BlockWithPartition & block_with_partition, const StorageMetadataPtr & metadata_snapshot, bool optimize_on_insert) {
+
+    // 按照 primary key 排序 
+    Names sort_columns = metadata_snapshot->getSortingKeyColumns();
+    SortDescription sort_description;
+    size_t sort_columns_size = sort_columns.size();
+    sort_description.reserve(sort_columns_size);
+
+    for (size_t i = 0; i < sort_columns_size; ++i)
+        sort_description.emplace_back(block.getPositionByName(sort_columns[i]), 1, 1);
+
+    ProfileEvents::increment(ProfileEvents::MergeTreeDataWriterBlocks);
+
+    /// Sort
+    IColumn::Permutation * perm_ptr = nullptr;
+    IColumn::Permutation perm;
+    if (!sort_description.empty())
+    {
+        if (!isAlreadySorted(block, sort_description))
+        {
+            // 对block排序， 返回排序的索引。（block的顺序并没有发生变化）
+            stableGetPermutation(block, sort_description, perm);
+            perm_ptr = &perm;
+        }
+        else
+            ProfileEvents::increment(ProfileEvents::MergeTreeDataWriterBlocksAlreadySorted);
+    }
+
+    // 根据MergeTreeDataPartType类型
+    // 这里new_data_part 类型为 MergeTreeDataPartCompact
+    auto new_data_part = data.createPart(
+        part_name,
+        data.choosePartType(expected_size, block.rows()),
+        new_part_info,
+        createVolumeFromReservation(reservation, volume),
+        TMP_PREFIX + part_name);
+    // ...
+
+    MergedBlockOutputStream out(new_data_part, metadata_snapshot, columns, index_factory.getMany(metadata_snapshot->getSecondaryIndices()), compression_codec);
+    bool sync_on_insert = data.getSettings()->fsync_after_insert;
+    // 写操作
+    out.writePrefix();
+    out.writeWithPermutation(block, perm_ptr);  
+    out.writeSuffixAndFinalizePart(new_data_part, sync_on_insert);
+}
+```
+
+经过调用栈（调用栈信息如下），从`MergeTreeDataWriter::writeTempPart` 到`MergeTreeDataPartWriterCompact::writeDataBlock`
+```
+DB::MergeTreeDataPartWriterCompact::writeDataBlock(DB::MergeTreeDataPartWriterCompact * const this, const DB::Block & block, const DB::Granules & granules) (src\Storages\MergeTree\MergeTreeDataPartWriterCompact.cpp:172)
+DB::MergeTreeDataPartWriterCompact::writeDataBlockPrimaryIndexAndSkipIndices(DB::MergeTreeDataPartWriterCompact * const this, const DB::Block & block, const DB::Granules & granules_to_write) (src\Storages\MergeTree\MergeTreeDataPartWriterCompact.cpp:158)
+DB::MergeTreeDataPartWriterCompact::finishDataSerialization(DB::MergeTreeDataPartWriterCompact * const this, DB::IMergeTreeDataPart::Checksums & checksums, bool sync) (src\Storages\MergeTree\MergeTreeDataPartWriterCompact.cpp:228)
+DB::MergeTreeDataPartWriterCompact::finish(DB::MergeTreeDataPartWriterCompact * const this, DB::IMergeTreeDataPart::Checksums & checksums, bool sync) (src\Storages\MergeTree\MergeTreeDataPartWriterCompact.cpp:356)
+DB::MergedBlockOutputStream::writeSuffixAndFinalizePart(DB::MergedBlockOutputStream * const this, DB::MergeTreeData::MutableDataPartPtr & new_part, bool sync, const DB::NamesAndTypesList * total_columns_list, DB::IMergeTreeDataPart::Checksums * additional_column_checksums) (\home\zhangzhen\ClickHouse\src\Storages\MergeTree\MergedBlockOutputStream.cpp:73)
+DB::MergeTreeDataWriter::writeTempPart(DB::MergeTreeDataWriter * const this, DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot, bool optimize_on_insert) (\home\zhangzhen\ClickHouse\src\Storages\MergeTree\MergeTreeDataWriter.cpp:406)
+```
+
 
 ## optimize
 
