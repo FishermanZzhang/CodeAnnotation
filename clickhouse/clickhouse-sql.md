@@ -302,6 +302,8 @@ DB::MergeTreeDataWriter::writeTempPart(DB::MergeTreeDataWriter * const this, DB:
 
 
 ## optimize
+src/Interpreters/InterpreterOptimizeQuery.cpp
+InterpreterOptimizeQuery
 
 # 参考文献
 * http://sineyuan.github.io/post/clickhouse-source-guide/
