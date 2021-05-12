@@ -300,10 +300,38 @@ DB::MergedBlockOutputStream::writeSuffixAndFinalizePart(DB::MergedBlockOutputStr
 DB::MergeTreeDataWriter::writeTempPart(DB::MergeTreeDataWriter * const this, DB::BlockWithPartition & block_with_partition, const DB::StorageMetadataPtr & metadata_snapshot, bool optimize_on_insert) (\home\zhangzhen\ClickHouse\src\Storages\MergeTree\MergeTreeDataWriter.cpp:406)
 ```
 
-
 ## optimize
-src/Interpreters/InterpreterOptimizeQuery.cpp
-InterpreterOptimizeQuery
+后台merge，sql语句两个方式都会触发optimize
+
+进入核心代码：
+src/Storages/StorageMergeTree.cpp
+```
+if (!partition && final){
+  // 遍历所有partition，获取partition_id.
+  // 遍历partition_id, 进行merge
+}
+else{
+  String partition_id;
+  // 如果没有指定partition, 按照策略计算出适合merge 的partition 
+  // 选取partition的策略见  src/Storages/MergeTree/SimpleMergeSelector.h 
+  if (partition)
+    partition_id = getPartitionIDFromQuery(partition, context)
+  merge(partition)
+}
+```
+```
+bool StorageMergeTree::merge(
+    bool aggressive,
+    const String & partition_id,
+    bool final,
+    bool deduplicate,
+    const Names & deduplicate_by_columns,
+    String * out_disable_reason,
+    bool optimize_skip_merged_partitions){
+auto merge_mutate_entry = selectPartsToMerge(metadata_snapshot, aggressive, partition_id, final, out_disable_reason, table_lock_holder, optimize_skip_merged_partitions, &select_decision);
+return mergeSelectedParts(metadata_snapshot, deduplicate, deduplicate_by_columns, *merge_mutate_entry, table_lock_holder);
+}
+```
 
 # 参考文献
 * http://sineyuan.github.io/post/clickhouse-source-guide/
